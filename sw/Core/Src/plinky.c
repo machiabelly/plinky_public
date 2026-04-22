@@ -2604,8 +2604,8 @@ short *getrxbuf(void);
 
 
 void check_bootloader_flash(void) {
-	#ifdef WASM
-	return; // no bootloader on wasm
+	#if defined(WASM) || defined(EMU)
+	return; // no bootloader on wasm/emu
 	#endif
 	int count=0;
 	uint32_t *rb32=(uint32_t*)REVERB_BUF;
@@ -2676,7 +2676,7 @@ void check_bootloader_flash(void) {
 		drawstr(0,24,F_8,verbuf);
 
 		oled_flip(vrambuf);
-		#ifndef WASM
+		#if !defined(WASM) && !defined(EMU)
 	    HAL_FLASH_Unlock();
 	    FLASH_EraseInitTypeDef EraseInitStruct;
 	    	EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
@@ -3241,7 +3241,7 @@ void EMSCRIPTEN_KEEPALIVE plinky_init(void) {
 	{
 		// see if we are a Plinky+ with 1305 display
 		// g_i_am_a_plinky_plus is used in oled.h
-		#ifndef WASM
+		#if !defined(WASM) && !defined(EMU)
 		GPIO_InitTypeDef GPIO_InitStruct = {0};
 		GPIO_InitStruct.Pin = GPIO_PIN_1;
 		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
