@@ -51,6 +51,8 @@ u8 finalwait;
 u8 fingerediting = 0; // finger is over some kind of non-musical edit control
 u8 prevfingerediting = 0;
 u8 last_edited_step_global = 255;
+u8 last_edited_step[8] = {255, 255, 255, 255, 255, 255, 255, 255};
+u8 cleared_step_index = 255; // which step was last cleared, for re-record alignment
 
 typedef struct euclid_state {
 	int trigcount;
@@ -472,6 +474,8 @@ void on_shift_up(int release_button) {
 			int q = (cur_step >> 4) & 3;
 			FingerRecord* fr = &rampattern[q].steps[cur_step & 15][0];
 			for (int fi = 0; fi < 8; ++fi, ++fr) {
+				memset(fr->pos, 0, sizeof(fr->pos));
+				last_edited_step[fi] = 255;
 				for (int k = 0; k < 8; ++k) {
 					if (fr->pressure[k] > 0)
 						dirty = true;
@@ -487,6 +491,7 @@ void on_shift_up(int release_button) {
 			}
 			if (dirty)
 				ramtime[GEN_PAT0 + ((cur_step >> 4) & 3)] = millis();
+			cleared_step_index = cur_step;
 			set_cur_step(cur_step + 1, false);
 		}
 		
@@ -710,7 +715,6 @@ int pos_decompress(int position) {
 
 void finger_synth_update(int fi) {
 	static u8 last_edited_substep_global = 255;
-	static u8 last_edited_step[8] = {255, 255, 255, 255, 255, 255, 255, 255};
 	static int record_to_substep;
 	static bool suppress_latch = false;
 
@@ -862,6 +866,14 @@ void finger_synth_update(int fi) {
                     memset(seq_record->pos, 0, sizeof(seq_record->pos));
                     // we're now editing this step with this finger
                     last_edited_step[fi] = cur_step;
+                    // if returning to a just-cleared step before substep 0 arrives,
+                    // reset the write position so re-recording starts from slot 0
+                    if (cur_step == cleared_step_index && last_edited_step_global != cur_step) {
+                        record_to_substep = 0;
+                        last_edited_substep_global = substep;
+                        last_edited_step_global = cur_step;
+                        cleared_step_index = 255;
+                    }
                 }		
             }
             // record!
